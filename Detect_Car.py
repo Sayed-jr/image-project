@@ -14,7 +14,7 @@ import cv2
 import glob
 import time
 
-def get_hog_features(img, orient, pix_per_cell, cell_per_block, 
+def get_fet_hog(img, orient, pix_per_cell, cell_per_block, 
                         vis=False, feature_vec=True):
     # Call with two outputs if vis==True
     if vis == True:
@@ -33,7 +33,7 @@ def get_hog_features(img, orient, pix_per_cell, cell_per_block,
                        visualize=vis, feature_vector=feature_vec)
         return features
 
-def extract_features(imgs, cspace='RGB', orient=9, 
+def feat_extract(imgs, cspace='RGB', orient=9, 
                         pix_per_cell=8, cell_per_block=2, hog_channel=0):
     # Create a list to append feature vectors to
     features = []
@@ -55,16 +55,16 @@ def extract_features(imgs, cspace='RGB', orient=9,
                 feature_image = cv2.cvtColor(image, cv2.COLOR_RGB2YCrCb)
         else: feature_image = np.copy(image)
 
-        # Call get_hog_features() with vis=False, feature_vec=True
+        # Call get_fet_hog() with vis=False, feature_vec=True
         if hog_channel == 'ALL':
             hog_features = []
             for channel in range(feature_image.shape[2]):
-                hog_features.append(get_hog_features(feature_image[:,:,channel], 
+                hog_features.append(get_fet_hog(feature_image[:,:,channel], 
                                     orient, pix_per_cell, cell_per_block, 
                                     vis=False, feature_vec=True))
             hog_features = np.ravel(hog_features)        
         else:
-            hog_features = get_hog_features(feature_image[:,:,hog_channel], orient, 
+            hog_features = get_fet_hog(feature_image[:,:,hog_channel], orient, 
                         pix_per_cell, cell_per_block, vis=False, feature_vec=True)
         # Append the new feature vector to the features list
         features.append(hog_features)
@@ -109,8 +109,8 @@ car_img = mpimg.imread(car_images[0])
 not_car_img = mpimg.imread(noncar_images[0])
 
 # Get HOG features from images
-_, car_dst = get_hog_features(car_img[:,:,2], 9, 8, 8, vis=True, feature_vec=True)
-_, not_car_dst = get_hog_features(not_car_img[:,:,2], 9, 8, 8, vis=True, feature_vec=True)
+_, car_dst = get_fet_hog(car_img[:,:,2], 9, 8, 8, vis=True, feature_vec=True)
+_, not_car_dst = get_fet_hog(not_car_img[:,:,2], 9, 8, 8, vis=True, feature_vec=True)
 
 # Display images next to their hog features 
 fig = plt.figure()
@@ -133,12 +133,12 @@ cell_per_block = 2
 hog_channel = 'ALL' # Can be 0, 1, 2, or "ALL"
 
 # Get features for images with cars
-car_features = extract_features(car_images, cspace=colorspace, orient=orient, 
+car_features = feat_extract(car_images, cspace=colorspace, orient=orient, 
                         pix_per_cell=pix_per_cell, cell_per_block=cell_per_block, 
                         hog_channel=hog_channel)
 
 # Get features for images without cars
-notcar_features = extract_features(noncar_images, cspace=colorspace, orient=orient, 
+notcar_features = feat_extract(noncar_images, cspace=colorspace, orient=orient, 
                         pix_per_cell=pix_per_cell, cell_per_block=cell_per_block, 
                         hog_channel=hog_channel)
 
@@ -176,15 +176,15 @@ print('Test Accuracy =', round(svc.score(X_test, y_test), 4))
 ###########################
 
 
-def find_cars(img, ystart, ystop, scale, cspace, hog_channel, svc, X_scaler, orient, 
-              pix_per_cell, cell_per_block, spatial_size, hist_bins, show_all_rectangles=False):
+def car_finder(img, start_y_coordinates, end_y_coordinates, scale, cspace, hog_channel, svc, X_scaler, orient, 
+              pix_per_cell, cell_per_block, spatial_size, hist_bins, show_all_rects=False):
     
-    # Define array of rectangles surrounding cars that were detected
-    rectangles = []
+    # Define array of rects surrounding cars that were detected
+    rects = []
     
     # Normalize image
     img = img.astype(np.float32)/255
-    search_img = img[ystart:ystop,:,:]
+    search_img = img[start_y_coordinates:end_y_coordinates,:,:]
 
     # Apply color conversion if other than 'RGB'
     if cspace != 'RGB':
@@ -225,10 +225,10 @@ def find_cars(img, ystart, ystop, scale, cspace, hog_channel, svc, X_scaler, ori
     ny_steps = (ny_blocks - nblocks_per_window) // cells_per_step
     
     # Compute individual channel HOG features for the entire image
-    hog1 = get_hog_features(channel_1, orient, pix_per_cell, cell_per_block, feature_vec=False)   
+    hog1 = get_fet_hog(channel_1, orient, pix_per_cell, cell_per_block, feature_vec=False)   
     if hog_channel == 'ALL':
-        hog2 = get_hog_features(channel_2, orient, pix_per_cell, cell_per_block, feature_vec=False)
-        hog3 = get_hog_features(channel_3, orient, pix_per_cell, cell_per_block, feature_vec=False)
+        hog2 = get_fet_hog(channel_2, orient, pix_per_cell, cell_per_block, feature_vec=False)
+        hog3 = get_fet_hog(channel_3, orient, pix_per_cell, cell_per_block, feature_vec=False)
     
     for x in range(nx_steps):
         for y in range(ny_steps):
@@ -249,13 +249,13 @@ def find_cars(img, ystart, ystop, scale, cspace, hog_channel, svc, X_scaler, ori
             
             test_prediction = svc.predict(hog_features)
             
-            if test_prediction == 1 or show_all_rectangles:
+            if test_prediction == 1 or show_all_rects:
                 x_box_left = np.int(x_left*scale)
                 y_top_draw = np.int(y_top*scale)
                 window_draw = np.int(window*scale)
-                rectangles.append(((x_box_left, y_top_draw+ystart),(x_box_left+window_draw,y_top_draw+window_draw+ystart)))
+                rects.append(((x_box_left, y_top_draw+start_y_coordinates),(x_box_left+window_draw,y_top_draw+window_draw+start_y_coordinates)))
                 
-    return rectangles
+    return rects
 
 def draw_boxes(img, bboxes, color=(0, 0, 255), thick=6):
     # Make a copy of the image
@@ -285,7 +285,7 @@ def draw_labeled_bboxes(img, labels):
         rects.append(bbox)
         # Draw the box on the image
         cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
-    # Return the image and final rectangles
+    # Return the image and final rects
     return img, rects
 
 
@@ -293,11 +293,11 @@ def draw_labeled_bboxes(img, labels):
 
 
     # Get test image
-test_img = mpimg.imread('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_images/test4.jpg')
+test_img = mpimg.imread('/content/image-project/test_images/test4.jpg')
 
-# Set parameters for find_cars function
-ystart = 400
-ystop = 660
+# Set parameters for car_finder function
+start_y_coordinates = 400
+end_y_coordinates = 660
 scale = 1.5
 colorspace = 'YUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 orient = 11
@@ -305,19 +305,19 @@ pix_per_cell = 16
 cell_per_block = 2
 hog_channel = 'ALL' # Can be 0, 1, 2, or "ALL"
 
-# Get output rectangles surrounding the cars we found
-rectangles = find_cars(test_img, ystart, ystop, scale, colorspace, 
+# Get output rects surrounding the cars we found
+rects = car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, 
                        hog_channel, svc, None, orient, pix_per_cell,
                        cell_per_block, None, None)
 
-# Print home many rectangles we found in the image
-print(len(rectangles), 'potential cars found in image')
+# Print home many rects we found in the image
+print(len(rects), 'potential cars found in image')
 
 #######################################
 
 
 # Draw boxes where cars are located in test image
-test_img_rects = draw_boxes(test_img, rectangles)
+test_img_rects = draw_boxes(test_img, rects)
 
 # Plot the new image
 plt.figure(figsize=(10,10))
@@ -329,144 +329,144 @@ plt.imshow(test_img_rects)
 
 
 # Load test image
-test_img = mpimg.imread('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_images/test1.jpg')
+test_img = mpimg.imread('/content/image-project/test_images/test1.jpg')
 
 # Create array to hold the select boxes where we found cars
 rects = []
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 470
+start_y_coordinates = 400
+end_y_coordinates = 470
 scale = 1.0
 
 # Find rectanlges in image and add them to the list
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Set search dimensions for layer
-ystart = 420
-ystop = 480
+start_y_coordinates = 420
+end_y_coordinates = 480
 scale = 1.0
 
-# Find rectangles in image and add them to the list
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Flatten the list of lists
-rectangles = [item for sublist in rects for item in sublist]
-test_img_rects = draw_boxes(test_img, rectangles)
+rects = [item for sublist in rects for item in sublist]
+test_img_rects = draw_boxes(test_img, rects)
 
-# Plot the rectangles on the image
+# Plot the rects on the image
 plt.figure(figsize=(10,10))
 plt.imshow(test_img_rects)
-print('Number of potential cars: ', len(rectangles))
+print('Number of potential cars: ', len(rects))
 
 ##############################
 
 
 # Load test image
-test_img = mpimg.imread('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_images/test1.jpg')
+test_img = mpimg.imread('/content/image-project/test_images/test1.jpg')
 
 # Create array to hold the select boxes where we found cars
 rects = []
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 500
+start_y_coordinates = 400
+end_y_coordinates = 500
 scale = 1.5
 
-# Find rectangles in image and add them to the list
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Set search dimensions for layer
-ystart = 430
-ystop = 530
+start_y_coordinates = 430
+end_y_coordinates = 530
 scale = 1.5
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Flatten the list of lists
-rectangles = [item for sublist in rects for item in sublist] 
-test_img_rects = draw_boxes(test_img, rectangles)
+rects = [item for sublist in rects for item in sublist] 
+test_img_rects = draw_boxes(test_img, rects)
 
-# Plot the rectangles on the image
+# Plot the rects on the image
 plt.figure(figsize=(10,10))
 plt.imshow(test_img_rects)
-print('Number of potential cars: ', len(rectangles))
+print('Number of potential cars: ', len(rects))
 
 ##########################
 
 # Load test image
-test_img = mpimg.imread('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_images/test1.jpg')
+test_img = mpimg.imread('/content/image-project/test_images/test1.jpg')
 
 # Create array to hold the select boxes where we found cars
 rects = []
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 530
+start_y_coordinates = 400
+end_y_coordinates = 530
 scale = 2.0
 
-# Find rectangles in image and add them to the list
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Set search dimensions for layer
-ystart = 430
-ystop = 560
+start_y_coordinates = 430
+end_y_coordinates = 560
 scale = 2.0
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Flatten the list of lists
-rectangles = [item for sublist in rects for item in sublist] 
-test_img_rects = draw_boxes(test_img, rectangles)
+rects = [item for sublist in rects for item in sublist] 
+test_img_rects = draw_boxes(test_img, rects)
 
-# Plot the rectangles on the image
+# Plot the rects on the image
 plt.figure(figsize=(10,10))
 plt.imshow(test_img_rects)
-print('Number of potential cars: ', len(rectangles))
+print('Number of potential cars: ', len(rects))
 
 ############################
 
 # Load test image
-test_img = mpimg.imread('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_images/test1.jpg')
+test_img = mpimg.imread('/content/image-project/test_images/test1.jpg')
 
 # Create array to hold the select boxes where we found cars
 rects = []
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 600
+start_y_coordinates = 400
+end_y_coordinates = 600
 scale = 3.0
 
-# Find rectangles in image and add them to the list
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Set search dimensions for layer
-ystart = 464
-ystop = 660
+start_y_coordinates = 464
+end_y_coordinates = 660
 scale = 3.0
-rects.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
-                       orient, pix_per_cell, cell_per_block, None, None, show_all_rectangles=True))
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
+                       orient, pix_per_cell, cell_per_block, None, None, show_all_rects=True))
 
 # Flatten the list of lists
-rectangles = [item for sublist in rects for item in sublist] 
-test_img_rects = draw_boxes(test_img, rectangles)
+rects = [item for sublist in rects for item in sublist] 
+test_img_rects = draw_boxes(test_img, rects)
 
-# Plot the rectangles on the image
+# Plot the rects on the image
 plt.figure(figsize=(10,10))
 plt.imshow(test_img_rects)
-print('Number of potential cars: ', len(rectangles))
+print('Number of potential cars: ', len(rects))
 ########################
 
 # Load test image
-test_img = mpimg.imread('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_images/test1.jpg')
+test_img = mpimg.imread('/content/image-project/test_images/test1.jpg')
 
 # Create array to hold the select boxes where we found cars
-rectangles = []
+rects = []
 
 colorspace = 'YUV' # Can be RGB, HSV, LUV, HLS, YUV, YCrCb
 orient = 11
@@ -475,82 +475,82 @@ cell_per_block = 2
 hog_channel = 'ALL' # Can be 0, 1, 2, or "ALL"
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 464
+start_y_coordinates = 400
+end_y_coordinates = 464
 scale = 1.0
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Set search dimensions for layer
-ystart = 416
-ystop = 480
+start_y_coordinates = 416
+end_y_coordinates = 480
 scale = 1.0
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 496
+start_y_coordinates = 400
+end_y_coordinates = 496
 scale = 1.5
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Set search dimensions for layer
-ystart = 432
-ystop = 528
+start_y_coordinates = 432
+end_y_coordinates = 528
 scale = 1.5
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 528
+start_y_coordinates = 400
+end_y_coordinates = 528
 scale = 2.0
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Set search dimensions for layer
-ystart = 432
-ystop = 560
+start_y_coordinates = 432
+end_y_coordinates = 560
 scale = 2.0
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Set search dimensions for layer
-ystart = 400
-ystop = 596
+start_y_coordinates = 400
+end_y_coordinates = 596
 scale = 3.5
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Set search dimensions for layer
-ystart = 464
-ystop = 660
+start_y_coordinates = 464
+end_y_coordinates = 660
 scale = 3.5
 
-# Find rectangles in image and add them to the list
-rectangles.append(find_cars(test_img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+# Find rects in image and add them to the list
+rects.append(car_finder(test_img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                        orient, pix_per_cell, cell_per_block, None, None))
 
 # Flatten the list of lists
-rectangles = [item for sublist in rectangles for item in sublist] 
-test_img_rects = draw_boxes(test_img, rectangles)
+rects = [item for sublist in rects for item in sublist] 
+test_img_rects = draw_boxes(test_img, rects)
 
-# Plot the rectangles on the image
+# Plot the rects on the image
 plt.figure(figsize=(10,10))
 plt.imshow(test_img_rects)
 
@@ -575,7 +575,7 @@ def apply_threshold(heatmap, threshold):
 
 # Test heatmap on test image
 heatmap_img = np.zeros_like(test_img[:,:,0])
-heatmap_img = add_heat(heatmap_img, rectangles)
+heatmap_img = add_heat(heatmap_img, rects)
 
 # Plot result
 plt.figure(figsize=(10,10))
@@ -607,9 +607,9 @@ plt.imshow(draw_img)
 def process_frame(img):
 
     # Create array to hold the select boxes where we found cars
-    rectangles = []
+    rects = []
 
-    # Set parameters for find_cars() function
+    # Set parameters for car_finder() function
     colorspace = 'YUV'
     orient = 11
     pix_per_cell = 16
@@ -617,67 +617,67 @@ def process_frame(img):
     hog_channel = 'ALL'
 
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 464
+    start_y_coordinates = 400
+    end_y_coordinates = 464
     scale = 1.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 416
-    ystop = 480
+    start_y_coordinates = 416
+    end_y_coordinates = 480
     scale = 1.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 496
+    start_y_coordinates = 400
+    end_y_coordinates = 496
     scale = 1.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 432
-    ystop = 528
+    start_y_coordinates = 432
+    end_y_coordinates = 528
     scale = 1.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 528
+    start_y_coordinates = 400
+    end_y_coordinates = 528
     scale = 2.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 432
-    ystop = 560
+    start_y_coordinates = 432
+    end_y_coordinates = 560
     scale = 2.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 596
+    start_y_coordinates = 400
+    end_y_coordinates = 596
     scale = 3.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 464
-    ystop = 660
+    start_y_coordinates = 464
+    end_y_coordinates = 660
     scale = 3.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
 
     # Flatten list of lists
-    rectangles = [item for sublist in rectangles for item in sublist] 
+    rects = [item for sublist in rects for item in sublist] 
     
     # Get heatmap image and apply threshold to frame
     heatmap_img = np.zeros_like(img[:,:,0])
-    heatmap_img = add_heat(heatmap_img, rectangles)
+    heatmap_img = add_heat(heatmap_img, rects)
     heatmap_img = apply_threshold(heatmap_img, 1)
     
     # Get labels from heatmap output
@@ -691,9 +691,9 @@ def process_frame(img):
 def process_frame_for_video(img):
 
     # Create array to hold the select boxes where we found cars
-    rectangles = []
+    rects = []
 
-    # Set parameters for find_cars() function
+    # Set parameters for car_finder() function
     colorspace = 'YUV'
     orient = 11
     pix_per_cell = 16
@@ -701,67 +701,67 @@ def process_frame_for_video(img):
     hog_channel = 'ALL'
     
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 464
+    start_y_coordinates = 400
+    end_y_coordinates = 464
     scale = 1.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 416
-    ystop = 480
+    start_y_coordinates = 416
+    end_y_coordinates = 480
     scale = 1.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 496
+    start_y_coordinates = 400
+    end_y_coordinates = 496
     scale = 1.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 432
-    ystop = 528
+    start_y_coordinates = 432
+    end_y_coordinates = 528
     scale = 1.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 528
+    start_y_coordinates = 400
+    end_y_coordinates = 528
     scale = 2.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 432
-    ystop = 560
+    start_y_coordinates = 432
+    end_y_coordinates = 560
     scale = 2.0
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 400
-    ystop = 596
+    start_y_coordinates = 400
+    end_y_coordinates = 596
     scale = 3.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
     
     # Set dimentions for rectangle layer
-    ystart = 464
-    ystop = 660
+    start_y_coordinates = 464
+    end_y_coordinates = 660
     scale = 3.5
-    rectangles.append(find_cars(img, ystart, ystop, scale, colorspace, hog_channel, svc, None, 
+    rects.append(car_finder(img, start_y_coordinates, end_y_coordinates, scale, colorspace, hog_channel, svc, None, 
                            orient, pix_per_cell, cell_per_block, None, None))
  
     # Flatten list of lists
-    rectangles = [item for sublist in rectangles for item in sublist] 
+    rects = [item for sublist in rects for item in sublist] 
     
     # Add detections to the history
-    if len(rectangles) > 0:
-        rm.add_rects(rectangles)
+    if len(rects) > 0:
+        rm.add_rects(rects)
     
     # Get heatmap image for every frame
     heatmap_img = np.zeros_like(img[:,:,0])
@@ -772,16 +772,16 @@ def process_frame_for_video(img):
     # Get labels from heatmap output
     labels = label(heatmap_img)
     
-    # Draw rectangles on image and output
+    # Draw rects on image and output
     draw_img, rect = draw_labeled_bboxes(np.copy(img), labels)
     
     return draw_img
 
-# Create a class to keep track of the previous frame's rectangles
+# Create a class to keep track of the previous frame's rects
 class Rectangle_Memory():
     
     def __init__(self):
-        # history of rectangles previous n frames
+        # history of rects previous n frames
         self.prev_rects = [] 
         
     def add_rects(self, rects):
@@ -796,7 +796,7 @@ rm = Rectangle_Memory()
 
 
 # Load test images
-test_images = glob.glob('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_images/test*.jpg')
+test_images = glob.glob('/content/image-project/test_images/test*.jpg')
 
 # Process test images
 img1 = process_frame(cv2.imread(test_images[1]))
@@ -824,10 +824,10 @@ plt.imshow(img4.squeeze(), cmap="gray")
 # Load Test Video
 test_video_result = '/content/drive/MyDrive/test_video_result_1.mp4'
 
-# Write out test_result_video
-clip_test = VideoFileClip('/content/Vehicle-Detection-using-HOG-Linear-SVM-framework/test_videos/project_video.mp4')
-clip_test_out = clip_test.fl_image(process_frame)
-%time clip_test_out.write_videofile(test_video_result, audio=False)
+# Write out project_video
+Project_video = VideoFileClip('/content/image-project/test_videos/test_video.mp4')
+Project_video_out = project_video.fl_image(process_frame)
+%time project_video_out.write_videofile(test_video_result, audio=False)
 
 ####################
 
